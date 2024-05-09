@@ -17,6 +17,8 @@
 #define WIFI_SSID "YOUR_WIFI_SSID"
 #define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
 #define MAX_TIMINGS 85
+#define DEVICE_NAME "ESP32"
+#define SETTED_GROUND_MOSITURE 500
 
 static esp_mqtt_client_handle_t mqtt_client;
 
@@ -78,6 +80,7 @@ void read_dht11(float *temperature, float *humidity) {
             *temperature = -*temperature;
         }
     }
+}
 
 // 아날로그 센서 데이터 읽기 함수
 int read_analog_sensor(adc1_channel_t channel) {
