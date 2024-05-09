@@ -36,7 +36,7 @@ void read_dht11(float *temperature, float *humidity) {
     vTaskDelay(18 / portTICK_PERIOD_MS);
     // 20-40us 대기
     gpio_set_level(DHT_PIN, 1);
-    ets_delay_us(40);
+    vTaskDelay(40 / portTICK_PERIOD_MS);
     // 센서로부터 80us 신호 수신
     gpio_set_direction(DHT_PIN, GPIO_MODE_INPUT);
 
@@ -45,7 +45,7 @@ void read_dht11(float *temperature, float *humidity) {
         counter = 0;
         while (gpio_get_level(DHT_PIN) == laststate) {
             counter++;
-            ets_delay_us(1);
+            esp_rom_delay_us(1);
             if (counter == 255) {
                 break;
             }
@@ -90,7 +90,8 @@ int read_analog_sensor(adc1_channel_t channel) {
 
 // 수위 센서 데이터 읽기 함수
 int read_water_level() {
-    // 수위 센서 데이터 읽는 코드 구현
+    int water_level = gpio_get_level(WATER_LEVEL_PIN);
+    return water_level;
 }
 
 // MQTT 데이터 전송 함수
@@ -106,15 +107,38 @@ void control_relay(bool state) {
 
 void app_main() {
     // Wi-Fi 및 MQTT 초기화 코드
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    } // Wi-Fi 및 MQTT 초기화
+    ESP_ERROR_CHECK(ret); 
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    esp_netif_create_default_wifi_sta();
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    wifi_config_t wifi_config = { // Wi-Fi 설정
+        .sta = {
+            .ssid = WIFI_SSID, // Wi-Fi SSID
+            .password = WIFI_PASSWORD // Wi-Fi 비밀번호
+        }
+    };
+    // MQTT 브로커 주소 설정
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
+    ESP_ERROR_CHECK(esp_wifi_start());
+    ESP_ERROR_CHECK(esp_wifi_connect());
+
 
     // 센서 및 릴레이 초기화
-    gpio_pad_select_gpio(DHT_PIN);
+    esp_rom_gpio_pad_select_gpio(DHT_PIN); // DHT11 센서
     gpio_set_direction(DHT_PIN, GPIO_MODE_INPUT);
     adc1_config_width(ADC_WIDTH_BIT_12);
-    adc1_config_channel_atten(SOIL_MOISTURE_PIN, ADC_ATTEN_DB_11);
-    gpio_pad_select_gpio(WATER_LEVEL_PIN);
+    adc1_config_channel_atten(SOIL_MOISTURE_PIN, ADC_ATTEN_DB_12);
+    esp_rom_gpio_pad_select_gpio(WATER_LEVEL_PIN);
     gpio_set_direction(WATER_LEVEL_PIN, GPIO_MODE_INPUT);
-    gpio_pad_select_gpio(RELAY_PIN);
+    esp_rom_gpio_pad_select_gpio(RELAY_PIN);
     gpio_set_direction(RELAY_PIN, GPIO_MODE_OUTPUT);
 
     while (1) {
