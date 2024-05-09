@@ -16,9 +16,9 @@
 #define RELAY_PIN GPIO_NUM_18
 #define WIFI_SSID "YOUR_WIFI_SSID"
 #define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
-#define MAX_TIMINGS 85
 #define DEVICE_NAME "ESP32"
-#define SETTED_GROUND_MOSITURE 500
+#define MAX_TIMINGS 85
+#define OPTIMA_SOIL_MOISTURE 500
 
 static esp_mqtt_client_handle_t mqtt_client;
 
@@ -167,6 +167,6 @@ void app_main() {
         bool relay_state = (soil_moisture < 500) && (water_level > 100);
         control_relay(relay_state);
 
-        vTaskDelay(pdMS_TO_TICKS(5000));  // 5초 간격으로 데이터 전송 및 제어
+        vTaskDelay(pdMS_TO_TICKS(1000));  // 1초 간격으로 데이터 전송 및 제어
     }
 }
