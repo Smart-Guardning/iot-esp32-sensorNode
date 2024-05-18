@@ -9,7 +9,7 @@ const char* ssid = "test";
 const char* password = "test";
 
 // MQTT 브로커 설정
-const char* mqtt_broker_ip = "test"; // 실제 Mosquitto 브로커 IP 주소
+const char* mqtt_broker_ip = "192.168.1.190"; // 실제 Mosquitto 브로커 IP 주소
 const int mqtt_port = 1883;
 
 // 센서 핀 설정

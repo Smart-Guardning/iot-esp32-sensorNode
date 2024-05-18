@@ -5,6 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MQTT Broker Manager</title>
   <script src="/socket.io/socket.io.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+    #log {
+      margin-top: 20px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: 400px;
+      overflow-y: scroll;
+    }
+  </style>
 </head>
 <body>
   <h1>MQTT Broker Manager</h1>
@@ -13,29 +25,16 @@
   <script>
     const socket = io();
 
-    socket.on('clientConnected', (clientId) => {
-      log(`Client Connected: ${clientId}`);
-    });
-
-    socket.on('clientDisconnected', (clientId) => {
-      log(`Client Disconnected: ${clientId}`);
-    });
-
-    socket.on('messagePublished', (data) => {
-      log(`Message from ${data.clientId} on ${data.topic}: ${data.payload}`);
-    });
-
-    socket.on('clientSubscribed', (data) => {
-      log(`Client ${data.clientId} subscribed to: ${data.topics.join(', ')}`);
-    });
-
-    socket.on('clientUnsubscribed', (data) => {
-      log(`Client ${data.clientId} unsubscribed from: ${data.topics.join(', ')}`);
+    socket.on('mqttMessage', (data) => {
+      log(`Message on ${data.topic}: ${data.message}`);
     });
 
     function log(message) {
       const logDiv = document.getElementById('log');
-      logDiv.innerHTML += `<p>${message}</p>`;
+      const newMessage = document.createElement('p');
+      newMessage.textContent = message;
+      logDiv.appendChild(newMessage);
+      logDiv.scrollTop = logDiv.scrollHeight;
     }
   </script>
 </body>

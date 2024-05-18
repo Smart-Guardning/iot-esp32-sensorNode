@@ -9,7 +9,7 @@ const io = socketIo(server);
 const webPort = 3000;
 
 // MQTT 브로커 설정
-const mqttBrokerUrl = 'mqtt://localhost:1883';
+const mqttBrokerUrl = 'mqtt://192.168.1.190:1883'; // MQTT 브로커 주소
 const mqttClient = mqtt.connect(mqttBrokerUrl);
 
 // MQTT 클라이언트 설정
@@ -42,6 +42,7 @@ app.get('/', (req, res) => {
 
 io.on('connection', (socket) => {
     console.log('Socket.io client connected:', socket.id);
+
     socket.on('disconnect', () => {
         console.log('Socket.io client disconnected:', socket.id);
     });
