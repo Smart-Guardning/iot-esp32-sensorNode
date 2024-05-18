@@ -9,9 +9,9 @@ const char* ssid = "test";
 const char* password = "test";
 
 // MQTT 브로커 설정
-const char* mqtt_broker_ip = "192.168.1.190"; // 실제 Mosquitto 브로커 IP 주소
+const char* mqtt_broker_ip = "192.168.1.190";
 const int mqtt_port = 1883;
-const char* nodeID = "smartSenor-01";
+const char* nodeID = "smartSensor-01";
 
 // 센서 핀 설정
 #define SOIL_MOISTURE_PIN 34
@@ -29,9 +29,10 @@ void connectToMQTT() {
     client.setServer(mqtt_broker_ip, mqtt_port);
     while (!client.connected()) {
         Serial.print("Connecting to MQTT...");
-        if (client.connect("ESP32Client")) {
+        if (client.connect(nodeID)) {
             Serial.println("connected");
-            client.subscribe("smartfarm/commands");
+            String commandTopic = String("smartfarm/commands/") + nodeID;
+            client.subscribe(commandTopic.c_str());
         } else {
             Serial.print("failed with state ");
             Serial.println(client.state());
@@ -69,24 +70,21 @@ void collectSensorData() {
     int waterpipe = 0; // 0: 물펌프 멈춤, 1: 물펌프 작동
     int error_code = 0; // 0: 정상, 1: 오류 DH11 센서 오류, 2: 오류 수위 센서 오류, 3: 오류 토양 습도 센서 오류
 
-
     if (isnan(temp) || isnan(humidity)) {
         Serial.println("Failed to read from DHT sensor!");
         error_code = 1;
-        return;
     }
 
     if (waterLevelValue < 0 || waterLevelValue > 4095) {
         Serial.println("Failed to read from water level sensor!");
         error_code = 2;
-        return;
     }
 
     if (soilMoistureValue < 0 || soilMoistureValue > 4095) {
         Serial.println("Failed to read from soil moisture sensor!");
         error_code = 3;
-        return;
     }
+
     Serial.print("Node ID: ");
     Serial.println(nodeID);
     Serial.print("Soil Moisture: ");
@@ -102,19 +100,18 @@ void collectSensorData() {
     Serial.print("Error Code: ");
     Serial.println(error_code);
 
-
     // MQTT 메시지 전송
     String payload = "{";
-    payload += "\"nodeID\": \"" + String(nodeID) + "\",";
     payload += "\"soil_moisture\": " + String(soilMoistureValue) + ",";
     payload += "\"water_level\": " + String(waterLevelValue) + ",";
     payload += "\"temperature\": " + String(temp) + ",";
-    payload += "\"humidity\": " + String(humidity);
-    payload += "\"waterpipe\": " + String(waterpipe);
+    payload += "\"humidity\": " + String(humidity) + ",";
+    payload += "\"waterpipe\": " + String(waterpipe) + ",";
     payload += "\"error_code\": " + String(error_code);
     payload += "}";
 
-    client.publish("smartfarm/sensor", payload.c_str());
+    String topic = String("smartfarm/sensor/") + nodeID;
+    client.publish(topic.c_str(), payload.c_str());
 }
 
 // MQTT 메시지 콜백 함수
@@ -124,7 +121,9 @@ void callback(char* topic, byte* payload, unsigned int length) {
         incoming += (char)payload[i];
     }
 
-    Serial.print("Message received: ");
+    Serial.print("Message received on topic ");
+    Serial.print(topic);
+    Serial.print(": ");
     Serial.println(incoming);
 
     if (incoming == "WATER_ON") {
