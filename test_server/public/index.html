@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MQTT Broker Manager</title>
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <h1>MQTT Broker Manager</h1>
+  <div id="log"></div>
+
+  <script>
+    const socket = io();
+
+    socket.on('clientConnected', (clientId) => {
+      log(`Client Connected: ${clientId}`);
+    });
+
+    socket.on('clientDisconnected', (clientId) => {
+      log(`Client Disconnected: ${clientId}`);
+    });
+
+    socket.on('messagePublished', (data) => {
+      log(`Message from ${data.clientId} on ${data.topic}: ${data.payload}`);
+    });
+
+    socket.on('clientSubscribed', (data) => {
+      log(`Client ${data.clientId} subscribed to: ${data.topics.join(', ')}`);
+    });
+
+    socket.on('clientUnsubscribed', (data) => {
+      log(`Client ${data.clientId} unsubscribed from: ${data.topics.join(', ')}`);
+    });
+
+    function log(message) {
+      const logDiv = document.getElementById('log');
+      logDiv.innerHTML += `<p>${message}</p>`;
+    }
+  </script>
+</body>
+</html>

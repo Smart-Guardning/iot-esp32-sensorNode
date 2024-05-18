@@ -5,19 +5,17 @@
 #include <DHT.h>
 
 // WiFi 설정
-const char* ssid = "your_SSID";
-const char* password = "your_PASSWORD";
+const char* ssid = "test";
+const char* password = "test";
 
 // MQTT 브로커 설정
-const char* mqtt_server = "your_MQTT_BROKER_IP";
+const char* mqtt_broker_ip = "test"; // 실제 Mosquitto 브로커 IP 주소
 const int mqtt_port = 1883;
-const char* mqtt_user = "your_MQTT_USER";
-const char* mqtt_password = "your_MQTT_PASSWORD";
 
 // 센서 핀 설정
 #define SOIL_MOISTURE_PIN 34
-#define WATER_LEVEL_PIN 35
-#define DHT_PIN 14
+#define WATER_LEVEL_PIN 33
+#define DHT_PIN 21
 #define RELAY_PIN 27
 
 DHT dht(DHT_PIN, DHT11);
@@ -27,9 +25,10 @@ PubSubClient client(espClient);
 
 // MQTT 연결 함수
 void connectToMQTT() {
+    client.setServer(mqtt_broker_ip, mqtt_port);
     while (!client.connected()) {
         Serial.print("Connecting to MQTT...");
-        if (client.connect("ESP32Client", mqtt_user, mqtt_password)) {
+        if (client.connect("ESP32Client")) {
             Serial.println("connected");
             client.subscribe("smartfarm/commands");
         } else {
@@ -120,16 +119,20 @@ void setup() {
 
     connectToWiFi();
 
-    client.setServer(mqtt_server, mqtt_port);
     client.setCallback(callback);
 
+    // 디버깅 메시지 추가
+    Serial.println("Starting MQTT connection");
     connectToMQTT();
 }
 
 void loop() {
     if (!client.connected()) {
+        // 디버깅 메시지 추가
+        Serial.println("MQTT client not connected, reconnecting...");
         connectToMQTT();
     }
+
     client.loop();
 
     collectSensorData();
