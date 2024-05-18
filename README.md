@@ -23,7 +23,7 @@ Arduino, WiFi, PubSubClient(MQTT), Adafruit_Sensor, DHT 라이브러리를 사�
     String topic = String("smartfarm/sensor/") + nodeID;
     client.publish(topic.c_str(), payload.c_str());
 ```
-위의 코드는 토픽 `smartfarm/sensor/[nodeID]`에 {"node_id":"[노드ID]","soil_moisture":[토양 습도],"water_level":[수위],"temperature":"[온도]","humidity":"[습도]","waterpipe":[0 or 1],"error_code":[0 ~ 3]}를 전송한다.
+위의 코드는 토픽 `smartfarm/sensor/[nodeID]`에 `{"node_id":"[노드ID]","soil_moisture":[토양 습도],"water_level":[수위],"temperature":"[온도]","humidity":"[습도]","waterpipe":[0 or 1],"error_code":[0 ~ 3]}`를 전송한다.
 
 시리얼 통신을 통해 `WiFi 설정`, `MQTT 연결 설정`을 할 수 있다.
 
