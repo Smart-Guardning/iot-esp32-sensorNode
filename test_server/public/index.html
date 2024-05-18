@@ -5,36 +5,46 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MQTT Broker Manager</title>
   <script src="/socket.io/socket.io.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-    }
-    #log {
-      margin-top: 20px;
-      border: 1px solid #ccc;
-      padding: 10px;
-      height: 400px;
-      overflow-y: scroll;
-    }
-  </style>
 </head>
 <body>
   <h1>MQTT Broker Manager</h1>
+  <div>
+    <label for="nodeSelect">Select Node:</label>
+    <select id="nodeSelect">
+      <option value="">--Select Node--</option>
+    </select>
+  </div>
   <div id="log"></div>
 
   <script>
     const socket = io();
+    let selectedNode = "";
+
+    // 노드 목록 업데이트
+    socket.on('updateNodes', (nodes) => {
+      const nodeSelect = document.getElementById('nodeSelect');
+      nodeSelect.innerHTML = '<option value="">--Select Node--</option>';
+      nodes.forEach(node => {
+        const option = document.createElement('option');
+        option.value = node;
+        option.textContent = node;
+        nodeSelect.appendChild(option);
+      });
+    });
+
+    document.getElementById('nodeSelect').addEventListener('change', (event) => {
+      selectedNode = event.target.value;
+    });
 
     socket.on('mqttMessage', (data) => {
-      log(`Message on ${data.topic}: ${data.message}`);
+      if (selectedNode === "" || data.nodeID === selectedNode) {
+        log(`Message from ${data.topic}: ${data.message}`);
+      }
     });
 
     function log(message) {
       const logDiv = document.getElementById('log');
-      const newMessage = document.createElement('p');
-      newMessage.textContent = message;
-      logDiv.appendChild(newMessage);
-      logDiv.scrollTop = logDiv.scrollHeight;
+      logDiv.innerHTML += `<p>${message}</p>`;
     }
   </script>
 </body>
