@@ -167,6 +167,9 @@ void app_main() {
         bool relay_state = (soil_moisture < 500) && (water_level > 100);
         control_relay(relay_state);
 
+        // 시리얼
+        printf("Temperature: %.2f, Humidity: %.2f, Soil Moisture: %d, Water Level: %d, Relay: %d\n", temperature, humidity, soil_moisture, water_level, relay_state);
+
         vTaskDelay(pdMS_TO_TICKS(1000));  // 1초 간격으로 데이터 전송 및 제어
     }
 }
