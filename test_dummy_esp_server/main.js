@@ -36,7 +36,7 @@ function generateSensorData() {
 mqttClient.on('connect', () => {
     console.log('Connected to MQTT broker');
 
-    // 주기적으로 센서 데이터 발행 (2초마다)
+    // 주기적으로 센서 데이터 발행 (3초마다)
     setInterval(() => {
         const sensorData = generateSensorData();
         const payload = JSON.stringify(sensorData);
@@ -48,7 +48,7 @@ mqttClient.on('connect', () => {
                 console.log('Sensor data published:', payload);
             }
         });
-    }, 5000);
+    }, 3000);
 });
 
 mqttClient.on('error', (err) => {
