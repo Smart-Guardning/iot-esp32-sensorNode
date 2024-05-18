@@ -17,13 +17,18 @@ function generateSensorData() {
     const waterLevel = Math.floor(Math.random() * 1024);   // 0-1023 사이의 랜덤 값
     const temperature = (Math.random() * 30 + 10).toFixed(2); // 10-40도 사이의 랜덤 값
     const humidity = (Math.random() * 50 + 30).toFixed(2);    // 30-80% 사이의 랜덤 값
+    //릴레이 스위치 상태
+    const waterpipe = Math.floor(Math.random() * 2); // 0-1 사이의 랜덤 값
+    const errorCode = Math.floor(Math.random() * 2); // 0-1 사이의 랜덤 값
 
     return {
         node_id: nodeID,
         soil_moisture: soilMoisture,
         water_level: waterLevel,
         temperature: temperature,
-        humidity: humidity
+        humidity: humidity,
+        waterpipe: waterpipe,
+        error_code: errorCode,
     };
 }
 
