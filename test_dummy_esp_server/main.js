@@ -48,7 +48,7 @@ mqttClient.on('connect', () => {
                 console.log('Sensor data published:', payload);
             }
         });
-    }, 2000);
+    }, 5000);
 });
 
 mqttClient.on('error', (err) => {
