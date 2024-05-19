@@ -7,7 +7,7 @@
 const mqtt = require('mqtt');
 
 // MQTT 브로커 설정
-const mqttBrokerUrl = 'mqtt://192.168.1.190:1883'; // Mosquitto 브로커 IP 주소
+const mqttBrokerUrl = 'mqtt://127.0.0.1:1883'; // Mosquitto 브로커 IP 주소
 const mqttClient = mqtt.connect(mqttBrokerUrl);
 
 // 센서 데이터 생성 함수

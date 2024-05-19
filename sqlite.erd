@@ -36,8 +36,7 @@
       "8-7f1MyJzBzxdy17Lm63N"
     ],
     "relationshipIds": [
-      "-qG37RpToln6cAgurElST",
-      "rJWkf9Uvabg3F0NcRs9q9"
+      "-qG37RpToln6cAgurElST"
     ],
     "indexIds": [],
     "memoIds": []
@@ -57,15 +56,15 @@
           "TiRnzLzP5OrlXy7LTnfEa"
         ],
         "ui": {
-          "x": 162,
-          "y": 332,
+          "x": 142,
+          "y": 424,
           "zIndex": 2,
           "widthName": 78,
           "widthComment": 62,
           "color": ""
         },
         "meta": {
-          "updateAt": 1716098589322,
+          "updateAt": 1716098712531,
           "createAt": 1716097015357
         }
       },
@@ -510,16 +509,16 @@
         "comment": "외래키 access_controll",
         "dataType": "INTEGER",
         "default": "",
-        "options": 8,
+        "options": 10,
         "ui": {
-          "keys": 2,
+          "keys": 1,
           "widthName": 60,
           "widthComment": 120,
           "widthDataType": 60,
           "widthDefault": 60
         },
         "meta": {
-          "updateAt": 1716098254890,
+          "updateAt": 1716098705787,
           "createAt": 1716098240428
         }
       }
@@ -866,13 +865,14 @@
         "name": 1716098240428,
         "dataType": 1716098240428,
         "default": 1716098240428,
-        "comment": 1716098254890
+        "comment": 1716098254890,
+        "options(primaryKey)": 1716098705786
       }
     ],
     "rJWkf9Uvabg3F0NcRs9q9": [
       "relationshipEntities",
       1716098240428,
-      -1,
+      1716098703724,
       {
         "relationshipType": 1716098439825
       }
