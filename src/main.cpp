@@ -102,6 +102,7 @@ void collectSensorData() {
 
     // MQTT 메시지 전송
     String payload = "{";
+    payload += "\"node_id\": \"" + String(nodeID) + "\",";
     payload += "\"soil_moisture\": " + String(soilMoistureValue) + ",";
     payload += "\"water_level\": " + String(waterLevelValue) + ",";
     payload += "\"temperature\": " + String(temp) + ",";
