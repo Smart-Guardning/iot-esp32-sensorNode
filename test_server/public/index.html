@@ -15,6 +15,10 @@
     </select>
   </div>
   <div id="log"></div>
+  <div>
+    <button id="waterOnButton">Water Pump ON</button>
+    <button id="waterOffButton">Water Pump OFF</button>
+  </div>
 
   <script>
     const socket = io();
@@ -34,6 +38,22 @@
 
     document.getElementById('nodeSelect').addEventListener('change', (event) => {
       selectedNode = event.target.value;
+    });
+
+    document.getElementById('waterOnButton').addEventListener('click', () => {
+      if (selectedNode) {
+        socket.emit('controlWaterPump', { nodeID: selectedNode, command: 'WATER_ON' });
+      } else {
+        log('Please select a node first.');
+      }
+    });
+
+    document.getElementById('waterOffButton').addEventListener('click', () => {
+      if (selectedNode) {
+        socket.emit('controlWaterPump', { nodeID: selectedNode, command: 'WATER_OFF' });
+      } else {
+        log('Please select a node first.');
+      }
     });
 
     socket.on('mqttMessage', (data) => {

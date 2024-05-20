@@ -60,6 +60,19 @@ io.on('connection', (socket) => {
 
     // 클라이언트 연결 시 현재 노드 목록 전송
     socket.emit('updateNodes', Array.from(nodes));
+
+    // 워터펌프 제어 명령 수신
+    socket.on('controlWaterPump', (data) => {
+        const { nodeID, command } = data;
+        const commandTopic = `smartfarm/commands/${nodeID}`;
+        mqttClient.publish(commandTopic, command, (err) => {
+            if (err) {
+                console.error('Failed to publish command', err);
+            } else {
+                console.log(`Command ${command} sent to node ${nodeID}`);
+            }
+        });
+    });
 });
 
 server.listen(webPort, () => {
