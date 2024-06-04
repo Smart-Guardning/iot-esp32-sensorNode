@@ -21,7 +21,7 @@
   </div>
 
   <script>
-    const socket = io();
+    const socket = io('http://localhost:3000'); // WebSocket 서버 주소
     let selectedNode = "";
 
     // 노드 목록 업데이트

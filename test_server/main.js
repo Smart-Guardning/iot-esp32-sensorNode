@@ -6,10 +6,10 @@ const mqtt = require('mqtt');
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
-const webPort = 3000;
+const webPort = 3333;
 
 // MQTT 브로커 설정
-const mqttBrokerUrl = 'mqtt://192.168.1.190:1883'; // MQTT 브로커 주소
+const mqttBrokerUrl = 'mqtt://localhost:1883'; // MQTT 브로커 주소
 const mqttClient = mqtt.connect(mqttBrokerUrl);
 
 // 현재 구독 중인 노드 ID 저장
