@@ -47,7 +47,7 @@ io.on('connection', (socket) => {
     // 시리얼 포트 탐색
     socket.on('listSerialPorts', async () => {
         try {
-            const ports = await SerialList.WindowsBinding.list();
+            const ports = await SerialPort.SerialPort.list();
             
             console.log('Serial ports found:', ports);
             socket.emit('serialPorts', ports);
@@ -63,8 +63,10 @@ io.on('connection', (socket) => {
             await serialPort.close();
         }
 
-        serialPort = new SerialPort(portPath, { baudRate: 115200 });
-        parser = serialPort.pipe(new Readline({ delimiter: '\n' }));
+        // SerialList.WindowsBinding.open({path: portPath, baudRate: 115200});
+        // SerialPort.open({path: portPath, baudRate: 115200});
+        serialPort = new SerialPort.SerialPort({path: portPath, baudRate: 115200});
+        parser = serialPort.pipe(new Readline.ReadlineParser({ delimiter: '\n' }));
 
         parser.on('data', (data) => {
             console.log('Data from Arduino:', data);
