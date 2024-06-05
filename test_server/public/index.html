@@ -19,9 +19,37 @@
     <button id="waterOnButton">Water Pump ON</button>
     <button id="waterOffButton">Water Pump OFF</button>
   </div>
+  <h2>Select Serial Port</h2>
+  <div>
+    <label for="serialPortSelect">Serial Port:</label>
+    <select id="serialPortSelect">
+      <option value="">--Select Serial Port--</option>
+    </select>
+    <button id="selectSerialPortButton">Select Serial Port</button>
+  </div>
+  <h2>Update Settings</h2>
+  <form id="settingsForm">
+    <label for="ssid">SSID:</label><br>
+    <input type="text" id="ssid" name="ssid"><br>
+    <label for="password">Password:</label><br>
+    <input type="text" id="password" name="password"><br>
+    <label for="mqttBroker">MQTT Broker IP:</label><br>
+    <input type="text" id="mqttBroker" name="mqttBroker"><br>
+    <label for="mqttPort">MQTT Broker Port:</label><br>
+    <input type="text" id="mqttPort" name="mqttPort"><br>
+    <label for="nodeID">Node ID:</label><br>
+    <input type="text" id="nodeID" name="nodeID"><br>
+    <label for="autoWater">Auto Watering (ON/OFF):</label><br>
+    <input type="text" id="autoWater" name="autoWater"><br>
+    <label for="targetMoisture">Target Moisture:</label><br>
+    <input type="text" id="targetMoisture" name="targetMoisture"><br>
+    <label for="waterDuration">Watering Duration (ms):</label><br>
+    <input type="text" id="waterDuration" name="waterDuration"><br><br>
+    <input type="submit" value="Submit">
+  </form>
 
   <script>
-    const socket = io('http://localhost:3000'); // WebSocket 서버 주소
+    const socket = io('http://localhost:3333'); // WebSocket 서버 주소
     let selectedNode = "";
 
     // 노드 목록 업데이트
@@ -56,9 +84,42 @@
       }
     });
 
+    document.getElementById('settingsForm').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const formData = new FormData(event.target);
+      const settings = {};
+      formData.forEach((value, key) => {
+        settings[key] = value;
+      });
+      socket.emit('updateSettings', settings);
+      log('Settings sent to server');
+    });
+
     socket.on('mqttMessage', (data) => {
       if (selectedNode === "" || data.nodeID === selectedNode) {
         log(`Message from ${data.topic}: ${data.message}`);
+      }
+    });
+
+    socket.on('serialPorts', (ports) => {
+      const serialPortSelect = document.getElementById('serialPortSelect');
+      serialPortSelect.innerHTML = '<option value="">--Select Serial Port--</option>';
+      ports.forEach(port => {
+        const option = document.createElement('option');
+        option.value = port.path;
+        option.textContent = `${port.path} (${port.manufacturer})`;
+        serialPortSelect.appendChild(option);
+      });
+    });
+
+    document.getElementById('selectSerialPortButton').addEventListener('click', () => {
+      const serialPortSelect = document.getElementById('serialPortSelect');
+      const selectedPort = serialPortSelect.value;
+      if (selectedPort) {
+        socket.emit('selectSerialPort', selectedPort);
+        log(`Selected serial port: ${selectedPort}`);
+      } else {
+        log('Please select a serial port first.');
       }
     });
 
@@ -66,6 +127,8 @@
       const logDiv = document.getElementById('log');
       logDiv.innerHTML += `<p>${message}</p>`;
     }
+
+    socket.emit('listSerialPorts');
   </script>
 </body>
 </html>

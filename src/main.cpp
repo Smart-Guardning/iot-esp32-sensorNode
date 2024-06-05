@@ -4,14 +4,14 @@
 #include <Adafruit_Sensor.h>
 #include <DHT.h>
 
-// WiFi 설정
-const char* ssid = "NEOS";
-const char* password = "neosvr1998";
+// WiFi 설정 (기본값, 시리얼 통신으로 설정 가능)
+char ssid[50] = "your_default_ssid";
+char password[50] = "your_default_password";
 
-// MQTT 브로커 설정
-const char* mqtt_broker_ip = "192.168.1.243";
-const int mqtt_port = 1883;
-const char* nodeID = "smartSensor-01";
+// MQTT 브로커 설정 (기본값, 시리얼 통신으로 설정 가능)
+char mqtt_broker_ip[50] = "192.168.1.100";
+int mqtt_port = 1883;
+char nodeID[50] = "smartSensor-01";
 
 // 센서 핀 설정
 #define SOIL_MOISTURE_PIN 34
@@ -25,9 +25,46 @@ DHT dht(DHT_PIN, DHT11);
 WiFiClient espClient;
 PubSubClient client(espClient);
 
+bool autoWatering = false; // 자동 물주기 설정
 int targetMoisture = 500; // 기본 목표 습도
 bool watering = false;    // 물주기 상태를 나타내는 변수
 unsigned long wateringStartTime = 0; // 물주기 시작 시간
+unsigned long wateringDuration = 3000; // 물주기 시간 (기본 3초)
+
+// 함수 선언
+void connectToMQTT();
+void connectToWiFi();
+void collectSensorData();
+void callback(char* topic, byte* payload, unsigned int length);
+void processSerialInput();
+
+void setup() {
+    Serial.begin(115200);
+    pinMode(SOIL_MOISTURE_PIN, INPUT);
+    pinMode(WATER_LEVEL_PIN, INPUT);
+    pinMode(RELAY_PIN, OUTPUT);
+    pinMode(LED_PIN, OUTPUT); // LED 핀 설정
+    digitalWrite(RELAY_PIN, LOW);
+    digitalWrite(LED_PIN, LOW); // 초기 상태에서 LED 끄기
+
+    dht.begin();
+    connectToWiFi();
+    client.setCallback(callback);
+    Serial.println("Starting MQTT connection");
+    connectToMQTT();
+}
+
+void loop() {
+    if (!client.connected()) {
+        Serial.println("MQTT client not connected, reconnecting...");
+        connectToMQTT();
+    }
+
+    client.loop();
+    collectSensorData();
+    processSerialInput();
+    delay(2000);
+}
 
 // MQTT 연결 함수
 void connectToMQTT() {
@@ -72,7 +109,7 @@ void connectToWiFi() {
 void collectSensorData() {
     int soilMoistureValue = analogRead(SOIL_MOISTURE_PIN);
     int waterLevelValue = analogRead(WATER_LEVEL_PIN);
-    float temp = dht.readTemperature(false, true);
+    float temp = dht.readTemperature();
     float humidity = dht.readHumidity();
     int waterpipe = digitalRead(RELAY_PIN); // 릴레이 핀의 현재 상태 읽기
     int error_code = 0; // 0: 정상, 1: 오류 DHT11 센서 오류, 2: 오류 수위 센서 오류, 3: 오류 토양 습도 센서 오류
@@ -123,22 +160,75 @@ void collectSensorData() {
 
     String topic = String("smartfarm/sensor/") + nodeID;
     client.publish(topic.c_str(), payload.c_str());
-    
-    // 목표 습도와 현재 습도 비교하여 물주기 제어
-    if (!watering && soilMoistureValue < targetMoisture) {
-        watering = true;
-        wateringStartTime = millis();
-        digitalWrite(RELAY_PIN, HIGH);
-        digitalWrite(LED_PIN, HIGH); // 물펌프가 작동할 때 LED 켜기
-        Serial.println("RELAY_PIN set to HIGH for watering");
-    }
 
-    // 물주기 시간이 3초가 넘었는지 확인
-    if (watering && millis() - wateringStartTime >= 3000) {
-        digitalWrite(RELAY_PIN, LOW);
-        digitalWrite(LED_PIN, LOW); // 물펌프가 작동하지 않을 때 LED 끄기
-        Serial.println("RELAY_PIN set to LOW after 3 seconds");
-        watering = false;
+    // 자동 물주기 기능이 켜져 있는지 확인
+    if (autoWatering) {
+        // 목표 습도와 현재 습도 비교하여 물주기 제어
+        if (!watering && soilMoistureValue < targetMoisture) {
+            watering = true;
+            wateringStartTime = millis();
+            digitalWrite(RELAY_PIN, HIGH);
+            digitalWrite(LED_PIN, HIGH); // 물펌프가 작동할 때 LED 켜기
+            Serial.println("RELAY_PIN set to HIGH for watering");
+        }
+
+        // 물주기 시간이 설정된 시간을 넘었는지 확인
+        if (watering && millis() - wateringStartTime >= wateringDuration) {
+            digitalWrite(RELAY_PIN, LOW);
+            digitalWrite(LED_PIN, LOW); // 물펌프가 작동하지 않을 때 LED 끄기
+            Serial.println("RELAY_PIN set to LOW after watering duration");
+            watering = false;
+        }
+    }
+}
+
+// 시리얼 입력 처리 함수
+void processSerialInput() {
+    if (Serial.available() > 0) {
+        String input = Serial.readStringUntil('\n');
+        input.trim();
+
+        if (input.startsWith("SSID:")) {
+            input.remove(0, 5);
+            input.toCharArray(ssid, sizeof(ssid));
+            Serial.print("SSID set to: ");
+            Serial.println(ssid);
+        } else if (input.startsWith("PASSWORD:")) {
+            input.remove(0, 9);
+            input.toCharArray(password, sizeof(password));
+            Serial.print("Password set to: ");
+            Serial.println(password);
+        } else if (input.startsWith("MQTT_BROKER:")) {
+            input.remove(0, 12);
+            input.toCharArray(mqtt_broker_ip, sizeof(mqtt_broker_ip));
+            Serial.print("MQTT Broker IP set to: ");
+            Serial.println(mqtt_broker_ip);
+        } else if (input.startsWith("MQTT_PORT:")) {
+            input.remove(0, 10);
+            mqtt_port = input.toInt();
+            Serial.print("MQTT Broker Port set to: ");
+            Serial.println(mqtt_port);
+        } else if (input.startsWith("NODEID:")) {
+            input.remove(0, 7);
+            input.toCharArray(nodeID, sizeof(nodeID));
+            Serial.print("Node ID set to: ");
+            Serial.println(nodeID);
+        } else if (input.startsWith("AUTO_WATER:")) {
+            input.remove(0, 11);
+            autoWatering = (input == "ON");
+            Serial.print("Auto Watering set to: ");
+            Serial.println(autoWatering ? "ON" : "OFF");
+        } else if (input.startsWith("TARGET_MOISTURE:")) {
+            input.remove(0, 15);
+            targetMoisture = input.toInt();
+            Serial.print("Target Moisture set to: ");
+            Serial.println(targetMoisture);
+        } else if (input.startsWith("WATER_DURATION:")) {
+            input.remove(0, 15);
+            wateringDuration = input.toInt();
+            Serial.print("Watering Duration set to: ");
+            Serial.println(wateringDuration);
+        }
     }
 }
 
@@ -158,6 +248,18 @@ void callback(char* topic, byte* payload, unsigned int length) {
         targetMoisture = incoming.substring(15).toInt();
         Serial.print("New target moisture set to: ");
         Serial.println(targetMoisture);
+    } else if (incoming.startsWith("AUTO_WATER")) {
+        if (incoming.substring(10) == "ON") {
+            autoWatering = true;
+            Serial.println("Automatic watering enabled");
+        } else if (incoming.substring(10) == "OFF") {
+            autoWatering = false;
+            Serial.println("Automatic watering disabled");
+        }
+    } else if (incoming.startsWith("WATER_DURATION")) {
+        wateringDuration = incoming.substring(14).toInt();
+        Serial.print("New watering duration set to: ");
+        Serial.println(wateringDuration);
     } else if (incoming == "WATER_ON") {
         watering = true;
         wateringStartTime = millis();
@@ -172,38 +274,4 @@ void callback(char* topic, byte* payload, unsigned int length) {
     } else {
         Serial.println("Unknown command received");
     }
-}
-
-void setup() {
-    Serial.begin(115200);
-    pinMode(SOIL_MOISTURE_PIN, INPUT);
-    pinMode(WATER_LEVEL_PIN, INPUT);
-    pinMode(RELAY_PIN, OUTPUT);
-    pinMode(LED_PIN, OUTPUT); // LED 핀 설정
-    digitalWrite(RELAY_PIN, LOW);
-    digitalWrite(LED_PIN, LOW); // 초기 상태에서 LED 끄기
-
-    dht.begin();
-
-    connectToWiFi();
-
-    client.setCallback(callback);
-
-    // 디버깅 메시지 추가
-    Serial.println("Starting MQTT connection");
-    connectToMQTT();
-}
-
-void loop() {
-    if (!client.connected()) {
-        // 디버깅 메시지 추가
-        Serial.println("MQTT client not connected, reconnecting...");
-        connectToMQTT();
-    }
-
-    client.loop();
-
-    collectSensorData();
-
-    delay(2000);
 }
