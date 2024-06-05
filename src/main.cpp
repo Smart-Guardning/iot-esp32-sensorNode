@@ -5,12 +5,12 @@
 #include <DHT.h>
 
 // WiFi 설정 (기본값, 시리얼 통신으로 설정 가능)
-char ssid[50] = "your_default_ssid";
-char password[50] = "your_default_password";
+char ssid[50] = "NEOS";
+char password[50] = "neosvr1998";
 
 // MQTT 브로커 설정 (기본값, 시리얼 통신으로 설정 가능)
-char mqtt_broker_ip[50] = "192.168.1.100";
-int mqtt_port = 1883;
+char mqtt_broker_ip[50] = "192.168.1.243";
+int mqtt_port = 1884;
 char nodeID[50] = "smartSensor-01";
 
 // 센서 핀 설정

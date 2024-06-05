@@ -21,6 +21,8 @@
   </div>
   <h2>Select Serial Port</h2>
   <div>
+    <button id="scanSerialPortsButton">Scan Serial Ports</button>
+    <br>
     <label for="serialPortSelect">Serial Port:</label>
     <select id="serialPortSelect">
       <option value="">--Select Serial Port--</option>
@@ -95,10 +97,8 @@
       log('Settings sent to server');
     });
 
-    socket.on('mqttMessage', (data) => {
-      if (selectedNode === "" || data.nodeID === selectedNode) {
-        log(`Message from ${data.topic}: ${data.message}`);
-      }
+    document.getElementById('scanSerialPortsButton').addEventListener('click', () => {
+      socket.emit('listSerialPorts');
     });
 
     socket.on('serialPorts', (ports) => {
