@@ -43,6 +43,7 @@ void callback(char* topic, byte* payload, unsigned int length);
 void processSerialInput();
 void goToSleep();
 template<typename T> T getMedianValue(T* values, size_t size);
+void sendMQTTSettings();
 
 void setup() {
     Serial.begin(115200);
@@ -223,53 +224,82 @@ void processSerialInput() {
             input.toCharArray(ssid, sizeof(ssid));
             Serial.print("SSID set to: ");
             Serial.println(ssid);
+            sendMQTTSettings();
         } else if (input.startsWith("PASSWORD:")) {
             input.remove(0, 9);
             input.toCharArray(password, sizeof(password));
             Serial.print("Password set to: ");
             Serial.println(password);
+            sendMQTTSettings();
         } else if (input.startsWith("MQTT_BROKER:")) {
             input.remove(0, 12);
             input.toCharArray(mqtt_broker_ip, sizeof(mqtt_broker_ip));
             Serial.print("MQTT Broker IP set to: ");
             Serial.println(mqtt_broker_ip);
+            sendMQTTSettings();
         } else if (input.startsWith("MQTT_PORT:")) {
             input.remove(0, 10);
             mqtt_port = input.toInt();
             Serial.print("MQTT Broker Port set to: ");
             Serial.println(mqtt_port);
+            sendMQTTSettings();
         } else if (input.startsWith("NODEID:")) {
             input.remove(0, 7);
             input.toCharArray(nodeID, sizeof(nodeID));
             Serial.print("Node ID set to: ");
             Serial.println(nodeID);
+            sendMQTTSettings();
         } else if (input.startsWith("AUTO_WATER:")) {
             input.remove(0, 11);
             autoWatering = (input == "ON");
             Serial.print("Auto Watering set to: ");
             Serial.println(autoWatering ? "ON" : "OFF");
+            sendMQTTSettings();
         } else if (input.startsWith("TARGET_MOISTURE:")) {
             input.remove(0, 15);
             targetMoisture = input.toInt();
             Serial.print("Target Moisture set to: ");
             Serial.println(targetMoisture);
+            sendMQTTSettings();
         } else if (input.startsWith("WATER_DURATION:")) {
             input.remove(0, 15);
             wateringDuration = input.toInt();
             Serial.print("Watering Duration set to: ");
             Serial.println(wateringDuration);
+            sendMQTTSettings();
         } else if (input.startsWith("MEASUREMENT_INTERVAL:")) {
             input.remove(0, 20);
             measurementInterval = input.toInt();
             Serial.print("Measurement Interval set to: ");
             Serial.println(measurementInterval);
+            sendMQTTSettings();
         } else if (input.startsWith("SLEEP:")) {
             input.remove(0, 6);
             isSleeping = (input == "ON");
             Serial.print("Sleep Mode set to: ");
             Serial.println(isSleeping ? "ON" : "OFF");
+            sendMQTTSettings();
         }
     }
+}
+
+// 설정값을 MQTT로 전송하는 함수
+void sendMQTTSettings() {
+    String payload = "{";
+    payload += "\"node_id\": \"" + String(nodeID) + "\",";
+    payload += "\"ssid\": \"" + String(ssid) + "\",";
+    payload += "\"password\": \"" + String(password) + "\",";
+    payload += "\"mqtt_broker\": \"" + String(mqtt_broker_ip) + "\",";
+    payload += "\"mqtt_port\": " + String(mqtt_port) + ",";
+    payload += "\"auto_watering\": " + String(autoWatering ? "ON" : "OFF") + ",";
+    payload += "\"target_moisture\": " + String(targetMoisture) + ",";
+    payload += "\"watering_duration\": " + String(wateringDuration) + ",";
+    payload += "\"measurement_interval\": " + String(measurementInterval) + ",";
+    payload += "\"sleep_mode\": " + String(isSleeping ? "ON" : "OFF");
+    payload += "}";
+
+    String topic = String("smartfarm/settings/") + nodeID;
+    client.publish(topic.c_str(), payload.c_str());
 }
 
 // Deep Sleep 모드로 전환 함수
@@ -295,6 +325,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
         targetMoisture = incoming.substring(15).toInt();
         Serial.print("New target moisture set to: ");
         Serial.println(targetMoisture);
+        sendMQTTSettings();
     } else if (incoming.startsWith("AUTO_WATER")) {
         if (incoming.substring(10) == "ON") {
             autoWatering = true;
@@ -303,14 +334,17 @@ void callback(char* topic, byte* payload, unsigned int length) {
             autoWatering = false;
             Serial.println("Automatic watering disabled");
         }
+        sendMQTTSettings();
     } else if (incoming.startsWith("WATER_DURATION")) {
         wateringDuration = incoming.substring(14).toInt();
         Serial.print("New watering duration set to: ");
         Serial.println(wateringDuration);
+        sendMQTTSettings();
     } else if (incoming.startsWith("MEASUREMENT_INTERVAL")) {
         measurementInterval = incoming.substring(20).toInt();
         Serial.print("New measurement interval set to: ");
         Serial.println(measurementInterval);
+        sendMQTTSettings();
     } else if (incoming == "WATER_ON") {
         watering = true;
         wateringStartTime = millis();
@@ -330,6 +364,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
             isSleeping = false;
             Serial.println("Sleep mode disabled");
         }
+        sendMQTTSettings();
     } else {
         Serial.println("Unknown command received");
     }
