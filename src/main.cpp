@@ -195,7 +195,7 @@ void collectSensorData() {
     // 자동 물주기 기능이 켜져 있는지 확인
     if (autoWatering) {
         // 목표 습도와 현재 습도 비교하여 물주기 제어
-        if (!watering && soilMoistureValue < targetMoisture) {
+        if (!watering && soilMoistureValue < targetMoisture && waterLevelValue > 2000) {
             watering = true;
             wateringStartTime = millis();
             digitalWrite(RELAY_PIN, HIGH);
