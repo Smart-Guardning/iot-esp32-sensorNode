@@ -3,6 +3,7 @@
 #include <PubSubClient.h>
 #include <Adafruit_Sensor.h>
 #include <DHT.h>
+#include <esp_sleep.h>
 
 // WiFi 설정 (기본값, 시리얼 통신으로 설정 가능)
 char ssid[50] = "NEOS";
@@ -26,10 +27,12 @@ WiFiClient espClient;
 PubSubClient client(espClient);
 
 bool autoWatering = false; // 자동 물주기 설정
-int targetMoisture = 500; // 기본 목표 습도
+int targetMoisture = 2500; // 기본 목표 습도
 bool watering = false;    // 물주기 상태를 나타내는 변수
+bool isSleeping = false;   // Deep Sleep 모드 설정
 unsigned long wateringStartTime = 0; // 물주기 시작 시간
 unsigned long wateringDuration = 3000; // 물주기 시간 (기본 3초)
+unsigned long measurementInterval = 30; // 측정 주기 (기본 30분)
 
 // 함수 선언
 void connectToMQTT();
@@ -37,6 +40,7 @@ void connectToWiFi();
 void collectSensorData();
 void callback(char* topic, byte* payload, unsigned int length);
 void processSerialInput();
+void goToSleep();
 
 void setup() {
     Serial.begin(115200);
@@ -63,7 +67,10 @@ void loop() {
     client.loop();
     collectSensorData();
     processSerialInput();
-    delay(2000);
+
+    if (isSleeping) {
+        goToSleep();
+    }
 }
 
 // MQTT 연결 함수
@@ -127,7 +134,7 @@ void collectSensorData() {
         error_code = 2;
     }
 
-    if (soilMoistureValue < 0 || soilMoistureValue > 4095) {
+    if (soilMoistureValue < 0 || soilMoistureValue > 9999) {
         Serial.println("Failed to read from soil moisture sensor!");
         error_code = 3;
     }
@@ -228,8 +235,20 @@ void processSerialInput() {
             wateringDuration = input.toInt();
             Serial.print("Watering Duration set to: ");
             Serial.println(wateringDuration);
+        } else if (input.startsWith("MEASUREMENT_INTERVAL:")) {
+            input.remove(0, 20);
+            measurementInterval = input.toInt();
+            Serial.print("Measurement Interval set to: ");
+            Serial.println(measurementInterval);
         }
     }
+}
+
+// Deep Sleep 모드로 전환 함수
+void goToSleep() {
+    Serial.println("Going to sleep...");
+    esp_sleep_enable_timer_wakeup(measurementInterval * 1000000);
+    esp_deep_sleep_start();
 }
 
 // MQTT 메시지 콜백 함수
@@ -260,6 +279,10 @@ void callback(char* topic, byte* payload, unsigned int length) {
         wateringDuration = incoming.substring(14).toInt();
         Serial.print("New watering duration set to: ");
         Serial.println(wateringDuration);
+    } else if (incoming.startsWith("MEASUREMENT_INTERVAL")) {
+        measurementInterval = incoming.substring(20).toInt();
+        Serial.print("New measurement interval set to: ");
+        Serial.println(measurementInterval);
     } else if (incoming == "WATER_ON") {
         watering = true;
         wateringStartTime = millis();
