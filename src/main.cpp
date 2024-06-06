@@ -4,6 +4,7 @@
 #include <Adafruit_Sensor.h>
 #include <DHT.h>
 #include <esp_sleep.h>
+#include <algorithm>
 
 // WiFi 설정 (기본값, 시리얼 통신으로 설정 가능)
 char ssid[50] = "NEOS";
@@ -41,6 +42,7 @@ void collectSensorData();
 void callback(char* topic, byte* payload, unsigned int length);
 void processSerialInput();
 void goToSleep();
+template<typename T> T getMedianValue(T* values, size_t size);
 
 void setup() {
     Serial.begin(115200);
@@ -65,12 +67,17 @@ void loop() {
     }
 
     client.loop();
-    collectSensorData();
+
+    if (!watering) { // 펌프가 가동 중이 아닐 때만 센서 데이터 수집
+        collectSensorData();
+    }
+
     processSerialInput();
 
     if (isSleeping) {
         goToSleep();
     }
+    delay(3000);
 }
 
 // MQTT 연결 함수
@@ -114,10 +121,24 @@ void connectToWiFi() {
 
 // 센서 데이터 수집 함수
 void collectSensorData() {
-    int soilMoistureValue = analogRead(SOIL_MOISTURE_PIN);
-    int waterLevelValue = analogRead(WATER_LEVEL_PIN);
-    float temp = dht.readTemperature();
-    float humidity = dht.readHumidity();
+    const int numReadings = 5;
+    int soilMoistureValues[numReadings];
+    int waterLevelValues[numReadings];
+    float tempValues[numReadings];
+    float humidityValues[numReadings];
+
+    for (int i = 0; i < numReadings; i++) {
+        soilMoistureValues[i] = analogRead(SOIL_MOISTURE_PIN);
+        waterLevelValues[i] = analogRead(WATER_LEVEL_PIN);
+        tempValues[i] = dht.readTemperature();
+        humidityValues[i] = dht.readHumidity();
+        delay(50); // 각 측정 사이에 약간의 지연을 추가하여 안정화
+    }
+
+    int soilMoistureValue = getMedianValue(soilMoistureValues, numReadings);
+    int waterLevelValue = getMedianValue(waterLevelValues, numReadings);
+    float temp = getMedianValue(tempValues, numReadings);
+    float humidity = getMedianValue(humidityValues, numReadings);
     int waterpipe = digitalRead(RELAY_PIN); // 릴레이 핀의 현재 상태 읽기
     int error_code = 0; // 0: 정상, 1: 오류 DHT11 센서 오류, 2: 오류 수위 센서 오류, 3: 오류 토양 습도 센서 오류
 
@@ -154,19 +175,21 @@ void collectSensorData() {
     Serial.print("Error Code: ");
     Serial.println(error_code);
 
-    // MQTT 메시지 전송
-    String payload = "{";
-    payload += "\"node_id\": \"" + String(nodeID) + "\",";
-    payload += "\"soil_moisture\": " + String(soilMoistureValue) + ",";
-    payload += "\"water_level\": " + String(waterLevelValue) + ",";
-    payload += "\"temperature\": " + tempStr + ",";
-    payload += "\"humidity\": " + humidityStr + ",";
-    payload += "\"waterpipe\": " + String(waterpipe) + ",";
-    payload += "\"error_code\": " + String(error_code);
-    payload += "}";
+    // MQTT 메시지 전송 (펌프가 가동 중이 아닐 때만 전송)
+    if (!watering) {
+        String payload = "{";
+        payload += "\"node_id\": \"" + String(nodeID) + "\",";
+        payload += "\"soil_moisture\": " + String(soilMoistureValue) + ",";
+        payload += "\"water_level\": " + String(waterLevelValue) + ",";
+        payload += "\"temperature\": " + tempStr + ",";
+        payload += "\"humidity\": " + humidityStr + ",";
+        payload += "\"waterpipe\": " + String(waterpipe) + ",";
+        payload += "\"error_code\": " + String(error_code);
+        payload += "}";
 
-    String topic = String("smartfarm/sensor/") + nodeID;
-    client.publish(topic.c_str(), payload.c_str());
+        String topic = String("smartfarm/sensor/") + nodeID;
+        client.publish(topic.c_str(), payload.c_str());
+    }
 
     // 자동 물주기 기능이 켜져 있는지 확인
     if (autoWatering) {
@@ -240,6 +263,11 @@ void processSerialInput() {
             measurementInterval = input.toInt();
             Serial.print("Measurement Interval set to: ");
             Serial.println(measurementInterval);
+        } else if (input.startsWith("SLEEP:")) {
+            input.remove(0, 6);
+            isSleeping = (input == "ON");
+            Serial.print("Sleep Mode set to: ");
+            Serial.println(isSleeping ? "ON" : "OFF");
         }
     }
 }
@@ -294,7 +322,26 @@ void callback(char* topic, byte* payload, unsigned int length) {
         digitalWrite(LED_PIN, LOW); // 물펌프가 작동하지 않을 때 LED 끄기
         Serial.println("RELAY_PIN set to LOW");
         watering = false;
+    } else if (incoming.startsWith("SLEEP:")) {
+        if (incoming.substring(6) == "ON") {
+            isSleeping = true;
+            Serial.println("Sleep mode enabled");
+        } else if (incoming.substring(6) == "OFF") {
+            isSleeping = false;
+            Serial.println("Sleep mode disabled");
+        }
     } else {
         Serial.println("Unknown command received");
+    }
+}
+
+// 중간 값 필터 함수
+template<typename T>
+T getMedianValue(T* values, size_t size) {
+    std::sort(values, values + size);
+    if (size % 2 == 0) {
+        return (values[size / 2 - 1] + values[size / 2]) / 2;
+    } else {
+        return values[size / 2];
     }
 }
