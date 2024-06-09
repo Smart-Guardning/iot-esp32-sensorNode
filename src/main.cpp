@@ -46,6 +46,7 @@ void goToSleep();
 template<typename T> T getMedianValue(T* values, size_t size);
 void sendMQTTSettings();
 float readBatteryLevel();
+void printCurrentSettings();
 
 void setup() {
     Serial.begin(115200);
@@ -77,7 +78,7 @@ void loop() {
     }
 
     processSerialInput();
-
+    printCurrentSettings();
     if (isSleeping) {
         goToSleep();
     }
@@ -220,7 +221,7 @@ void collectSensorData() {
     }
 }
 
-//배터리 레벨 읽기 함수
+// 배터리 레벨 읽기 함수
 float readBatteryLevel() {
     return analogRead(BATTERY_PIN) / 4096.0 * 7.445;
 }
@@ -387,6 +388,14 @@ void callback(char* topic, byte* payload, unsigned int length) {
         Serial.print("Node ID set to: ");
         Serial.println(nodeID);
         sendMQTTSettings();
+    } else if (incoming == "WATER_ON") {
+        digitalWrite(RELAY_PIN, HIGH);
+        digitalWrite(LED_PIN, HIGH);
+        Serial.println("RELAY_PIN set to HIGH for manual watering");
+    } else if (incoming == "WATER_OFF") {
+        digitalWrite(RELAY_PIN, LOW);
+        digitalWrite(LED_PIN, LOW);
+        Serial.println("RELAY_PIN set to LOW for manual watering");
     } else {
         Serial.println("Unknown command received");
     }
@@ -402,4 +411,29 @@ T getMedianValue(T* values, size_t size) {
     } else {
         return values[size / 2];
     }
+}
+
+// 현재 세팅 출력
+void printCurrentSettings() {
+    Serial.println("Current Settings:");
+    Serial.print("SSID: ");
+    Serial.println(ssid);
+    Serial.print("Password: ");
+    Serial.println(password);
+    Serial.print("MQTT Broker IP: ");
+    Serial.println(mqtt_broker_ip);
+    Serial.print("MQTT Port: ");
+    Serial.println(mqtt_port);
+    Serial.print("Node ID: ");
+    Serial.println(nodeID);
+    Serial.print("Auto Watering: ");
+    Serial.println(autoWatering ? "ON" : "OFF");
+    Serial.print("Target Moisture: ");
+    Serial.println(targetMoisture);
+    Serial.print("Watering Duration: ");
+    Serial.println(wateringDuration);
+    Serial.print("Measurement Interval: ");
+    Serial.println(measurementInterval);
+    Serial.print("Sleep Mode: ");
+    Serial.println(isSleeping ? "ON" : "OFF");
 }
