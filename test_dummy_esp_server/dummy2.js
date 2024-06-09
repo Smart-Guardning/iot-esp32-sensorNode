@@ -15,7 +15,7 @@ let watering = false;    // 물주기 상태를 나타내는 변수
 let isSleeping = false;   // Deep Sleep 모드 설정
 let wateringDuration = 3000; // 물주기 시간 (기본 3초)
 let measurementInterval = 30; // 측정 주기 (기본 30분)
-const nodeID = 'smartSensor-ONE'; // 더미 노드 ID
+const nodeID = 'smartSensor-TWO'; // 더미 노드 ID
 
 // 센서 데이터 생성 함수
 function generateSensorData() {
