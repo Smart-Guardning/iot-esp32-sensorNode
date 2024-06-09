@@ -21,34 +21,40 @@ char nodeID[50] = "smartSensor-01";
 #define DHT_PIN 21
 #define RELAY_PIN 26
 #define LED_PIN 5 // LED 핀 설정
-#define BATTERY_PIN 35 
+#define BATTERY_PIN 35
 
 DHT dht(DHT_PIN, DHT22);
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-bool autoWatering = false; // 자동 물주기 설정
-int targetMoisture = 2500; // 기본 목표 습도
-bool watering = false;    // 물주기 상태를 나타내는 변수
-bool isSleeping = false;   // Deep Sleep 모드 설정
-unsigned long wateringStartTime = 0; // 물주기 시작 시간
-unsigned long wateringDuration = 3000; // 물주기 시간 (기본 3초)
+bool autoWatering = false;              // 자동 물주기 설정
+int targetMoisture = 2500;              // 기본 목표 습도
+bool watering = false;                  // 물주기 상태를 나타내는 변수
+bool isSleeping = false;                // Deep Sleep 모드 설정
+unsigned long wateringStartTime = 0;    // 물주기 시작 시간
+unsigned long wateringDuration = 3000;  // 물주기 시간 (기본 3초)
 unsigned long measurementInterval = 30; // 측정 주기 (기본 30분)
+
+int soilMoistureValue;
+int waterLevelValue;
 
 // 함수 선언
 void connectToMQTT();
 void connectToWiFi();
 void collectSensorData();
-void callback(char* topic, byte* payload, unsigned int length);
+void callback(char *topic, byte *payload, unsigned int length);
 void processSerialInput();
 void goToSleep();
-template<typename T> T getMedianValue(T* values, size_t size);
+template <typename T>
+T getMedianValue(T *values, size_t size);
 void sendMQTTSettings();
 float readBatteryLevel();
 void printCurrentSettings();
+void checkAutoWatering();
 
-void setup() {
+void setup()
+{
     Serial.begin(115200);
     pinMode(SOIL_MOISTURE_PIN, INPUT);
     pinMode(WATER_LEVEL_PIN, INPUT);
@@ -65,38 +71,51 @@ void setup() {
     connectToMQTT();
 }
 
-void loop() {
-    if (!client.connected()) {
+void loop()
+{
+    if (!client.connected())
+    {
         Serial.println("MQTT client not connected, reconnecting...");
         connectToMQTT();
     }
 
     client.loop();
 
-    if (!watering) { // 펌프가 가동 중이 아닐 때만 센서 데이터 수집
+    if (!watering)
+    { // 펌프가 가동 중이 아닐 때만 센서 데이터 수집
         collectSensorData();
     }
 
     processSerialInput();
     printCurrentSettings();
-    if (isSleeping) {
+
+    // 자동 물주기 기능 체크
+    checkAutoWatering();
+
+    if (isSleeping)
+    {
         goToSleep();
     }
     delay(3000);
 }
 
 // MQTT 연결 함수
-void connectToMQTT() {
+void connectToMQTT()
+{
     client.setServer(mqtt_broker_ip, mqtt_port);
-    while (!client.connected()) {
+    while (!client.connected())
+    {
         Serial.print("Connecting to MQTT...");
-        if (client.connect(nodeID)) {
+        if (client.connect(nodeID))
+        {
             Serial.println("connected");
             String commandTopic = String("smartfarm/commands/") + nodeID;
             client.subscribe(commandTopic.c_str());
             Serial.print("Subscribed to: ");
             Serial.println(commandTopic.c_str());
-        } else {
+        }
+        else
+        {
             Serial.print("failed with state ");
             Serial.println(client.state());
             delay(2000);
@@ -105,7 +124,8 @@ void connectToMQTT() {
 }
 
 // WiFi 연결 함수
-void connectToWiFi() {
+void connectToWiFi()
+{
     delay(10);
     Serial.println();
     Serial.print("Connecting to ");
@@ -113,7 +133,8 @@ void connectToWiFi() {
 
     WiFi.begin(ssid, password);
 
-    while (WiFi.status() != WL_CONNECTED) {
+    while (WiFi.status() != WL_CONNECTED)
+    {
         delay(500);
         Serial.print(".");
     }
@@ -125,14 +146,16 @@ void connectToWiFi() {
 }
 
 // 센서 데이터 수집 함수
-void collectSensorData() {
+void collectSensorData()
+{
     const int numReadings = 5;
     int soilMoistureValues[numReadings];
     int waterLevelValues[numReadings];
     float tempValues[numReadings];
     float humidityValues[numReadings];
 
-    for (int i = 0; i < numReadings; i++) {
+    for (int i = 0; i < numReadings; i++)
+    {
         soilMoistureValues[i] = analogRead(SOIL_MOISTURE_PIN);
         waterLevelValues[i] = analogRead(WATER_LEVEL_PIN);
         tempValues[i] = dht.readTemperature();
@@ -140,28 +163,31 @@ void collectSensorData() {
         delay(50); // 각 측정 사이에 약간의 지연을 추가하여 안정화
     }
 
-    int soilMoistureValue = getMedianValue(soilMoistureValues, numReadings);
-    int waterLevelValue = getMedianValue(waterLevelValues, numReadings);
+    soilMoistureValue = getMedianValue(soilMoistureValues, numReadings);
+    waterLevelValue = getMedianValue(waterLevelValues, numReadings);
     float temp = getMedianValue(tempValues, numReadings);
     float humidity = getMedianValue(humidityValues, numReadings);
-    int waterpipe = digitalRead(RELAY_PIN); // 릴레이 핀의 현재 상태 읽기
-    int error_code = 0; // 0: 정상, 1: 오류 DHT11 센서 오류, 2: 오류 수위 센서 오류, 3: 오류 토양 습도 센서 오류
+    int waterpipe = digitalRead(RELAY_PIN);  // 릴레이 핀의 현재 상태 읽기
+    int error_code = 0;                      // 0: 정상, 1: 오류 DHT11 센서 오류, 2: 오류 수위 센서 오류, 3: 오류 토양 습도 센서 오류
     float batteryLevel = readBatteryLevel(); // 배터리 레벨 읽기
 
     String tempStr = isnan(temp) ? "null" : String(temp);
     String humidityStr = isnan(humidity) ? "null" : String(humidity);
 
-    if (isnan(temp) || isnan(humidity)) {
+    if (isnan(temp) || isnan(humidity))
+    {
         Serial.println("Failed to read from DHT sensor!");
         error_code = 1;
     }
 
-    if (waterLevelValue < 0 || waterLevelValue > 4095) {
+    if (waterLevelValue < 0 || waterLevelValue > 4095)
+    {
         Serial.println("Failed to read from water level sensor!");
         error_code = 2;
     }
 
-    if (soilMoistureValue < 0 || soilMoistureValue > 9999) {
+    if (soilMoistureValue < 0 || soilMoistureValue > 9999)
+    {
         Serial.println("Failed to read from soil moisture sensor!");
         error_code = 3;
     }
@@ -184,7 +210,8 @@ void collectSensorData() {
     Serial.println(error_code);
 
     // MQTT 메시지 전송 (펌프가 가동 중이 아닐 때만 전송)
-    if (!watering) {
+    if (!watering)
+    {
         String payload = "{";
         payload += "\"node_id\": \"" + String(nodeID) + "\",";
         payload += "\"soil_moisture\": " + String(soilMoistureValue) + ",";
@@ -199,11 +226,13 @@ void collectSensorData() {
         String topic = String("smartfarm/sensor/") + nodeID;
         client.publish(topic.c_str(), payload.c_str());
     }
+}
 
-    // 자동 물주기 기능이 켜져 있는지 확인
+// 자동 물주기 함수
+void checkAutoWatering() {
     if (autoWatering) {
         // 목표 습도와 현재 습도 비교하여 물주기 제어
-        if (!watering && soilMoistureValue < targetMoisture && waterLevelValue > 2000) {
+        if (!watering && soilMoistureValue > targetMoisture && waterLevelValue > 200) {
             watering = true;
             wateringStartTime = millis();
             digitalWrite(RELAY_PIN, HIGH);
@@ -222,71 +251,93 @@ void collectSensorData() {
 }
 
 // 배터리 레벨 읽기 함수
-float readBatteryLevel() {
+float readBatteryLevel()
+{
     return analogRead(BATTERY_PIN) / 4096.0 * 7.445;
 }
 
 // 시리얼 입력 처리 함수
-void processSerialInput() {
-    if (Serial.available() > 0) {
+void processSerialInput()
+{
+    if (Serial.available() > 0)
+    {
         String input = Serial.readStringUntil('\n');
         input.trim();
 
-        if (input.startsWith("SSID:")) {
+        if (input.startsWith("SSID:"))
+        {
             input.remove(0, 5);
             input.toCharArray(ssid, sizeof(ssid));
             Serial.print("SSID set to: ");
             Serial.println(ssid);
             sendMQTTSettings();
-        } else if (input.startsWith("PASSWORD:")) {
+        }
+        else if (input.startsWith("PASSWORD:"))
+        {
             input.remove(0, 9);
             input.toCharArray(password, sizeof(password));
             Serial.print("Password set to: ");
             Serial.println(password);
             sendMQTTSettings();
-        } else if (input.startsWith("MQTT_BROKER:")) {
+        }
+        else if (input.startsWith("MQTT_BROKER:"))
+        {
             input.remove(0, 12);
             input.toCharArray(mqtt_broker_ip, sizeof(mqtt_broker_ip));
             Serial.print("MQTT Broker IP set to: ");
             Serial.println(mqtt_broker_ip);
             sendMQTTSettings();
-        } else if (input.startsWith("MQTT_PORT:")) {
+        }
+        else if (input.startsWith("MQTT_PORT:"))
+        {
             input.remove(0, 10);
             mqtt_port = input.toInt();
             Serial.print("MQTT Broker Port set to: ");
             Serial.println(mqtt_port);
             sendMQTTSettings();
-        } else if (input.startsWith("NODEID:")) {
+        }
+        else if (input.startsWith("NODEID:"))
+        {
             input.remove(0, 7);
             input.toCharArray(nodeID, sizeof(nodeID));
             Serial.print("Node ID set to: ");
             Serial.println(nodeID);
             sendMQTTSettings();
-        } else if (input.startsWith("AUTO_WATER:")) {
+        }
+        else if (input.startsWith("AUTO_WATER:"))
+        {
             input.remove(0, 11);
             autoWatering = (input == "ON");
             Serial.print("Auto Watering set to: ");
             Serial.println(autoWatering ? "ON" : "OFF");
             sendMQTTSettings();
-        } else if (input.startsWith("TARGET_MOISTURE:")) {
+        }
+        else if (input.startsWith("TARGET_MOISTURE:"))
+        {
             input.remove(0, 15);
             targetMoisture = input.toInt();
             Serial.print("Target Moisture set to: ");
             Serial.println(targetMoisture);
             sendMQTTSettings();
-        } else if (input.startsWith("WATER_DURATION:")) {
+        }
+        else if (input.startsWith("WATER_DURATION:"))
+        {
             input.remove(0, 15);
             wateringDuration = input.toInt();
             Serial.print("Watering Duration set to: ");
             Serial.println(wateringDuration);
             sendMQTTSettings();
-        } else if (input.startsWith("MEASUREMENT_INTERVAL:")) {
+        }
+        else if (input.startsWith("MEASUREMENT_INTERVAL:"))
+        {
             input.remove(0, 20);
             measurementInterval = input.toInt();
             Serial.print("Measurement Interval set to: ");
             Serial.println(measurementInterval);
             sendMQTTSettings();
-        } else if (input.startsWith("SLEEP:")) {
+        }
+        else if (input.startsWith("SLEEP:"))
+        {
             input.remove(0, 6);
             isSleeping = (input == "ON");
             Serial.print("Sleep Mode set to: ");
@@ -297,7 +348,8 @@ void processSerialInput() {
 }
 
 // 설정값을 MQTT로 전송하는 함수
-void sendMQTTSettings() {
+void sendMQTTSettings()
+{
     String payload = "{";
     payload += "\"node_id\": \"" + String(nodeID) + "\",";
     payload += "\"ssid\": \"" + String(ssid) + "\",";
@@ -316,16 +368,19 @@ void sendMQTTSettings() {
 }
 
 // Deep Sleep 모드로 전환 함수
-void goToSleep() {
+void goToSleep()
+{
     Serial.println("Going to sleep...");
     esp_sleep_enable_timer_wakeup(measurementInterval * 1000000);
     esp_deep_sleep_start();
 }
 
 // MQTT 메시지 콜백 함수
-void callback(char* topic, byte* payload, unsigned int length) {
+void callback(char *topic, byte *payload, unsigned int length)
+{
     String incoming = "";
-    for (int i = 0; i < length; i++) {
+    for (int i = 0; i < length; i++)
+    {
         incoming += (char)payload[i];
     }
 
@@ -334,87 +389,119 @@ void callback(char* topic, byte* payload, unsigned int length) {
     Serial.print(": ");
     Serial.println(incoming);
 
-    if (incoming.startsWith("TARGET_MOISTURE:")) {
-        targetMoisture = incoming.substring(15).toInt();
+    if (incoming.startsWith("TARGET_MOISTURE:"))
+    {
+        String valueStr = incoming.substring(16); 
+        targetMoisture = valueStr.toInt();        
         Serial.print("New target moisture set to: ");
         Serial.println(targetMoisture);
         sendMQTTSettings();
-    } else if (incoming.startsWith("AUTO_WATER:")) {
+    }
+    else if (incoming.startsWith("AUTO_WATER:"))
+    {
         autoWatering = (incoming.substring(11) == "ON");
         Serial.print("Auto Watering set to: ");
         Serial.println(autoWatering ? "ON" : "OFF");
         sendMQTTSettings();
-    } else if (incoming.startsWith("WATER_DURATION:")) {
-        wateringDuration = incoming.substring(15).toInt();
+    }
+    else if (incoming.startsWith("WATER_DURATION:"))
+    {
+        String valueStr = incoming.substring(15); 
+        wateringDuration = valueStr.toInt();
         Serial.print("Watering Duration set to: ");
         Serial.println(wateringDuration);
         sendMQTTSettings();
-    } else if (incoming.startsWith("MEASUREMENT_INTERVAL:")) {
-        measurementInterval = incoming.substring(20).toInt();
+    }
+    else if (incoming.startsWith("MEASUREMENT_INTERVAL:"))
+    {
+        String valueStr = incoming.substring(21); 
+        measurementInterval = valueStr.toInt(); 
         Serial.print("Measurement Interval set to: ");
         Serial.println(measurementInterval);
         sendMQTTSettings();
-    } else if (incoming.startsWith("SLEEP:")) {
+    }
+    else if (incoming.startsWith("SLEEP:"))
+    {
         isSleeping = (incoming.substring(6) == "ON");
         Serial.print("Sleep Mode set to: ");
         Serial.println(isSleeping ? "ON" : "OFF");
         sendMQTTSettings();
-    } else if (incoming.startsWith("SSID:")) {
+    }
+    else if (incoming.startsWith("SSID:"))
+    {
         incoming.remove(0, 5);
         incoming.toCharArray(ssid, sizeof(ssid));
         Serial.print("SSID set to: ");
         Serial.println(ssid);
         sendMQTTSettings();
-    } else if (incoming.startsWith("PASSWORD:")) {
+    }
+    else if (incoming.startsWith("PASSWORD:"))
+    {
         incoming.remove(0, 9);
         incoming.toCharArray(password, sizeof(password));
         Serial.print("Password set to: ");
         Serial.println(password);
         sendMQTTSettings();
-    } else if (incoming.startsWith("MQTT_BROKER:")) {
+    }
+    else if (incoming.startsWith("MQTT_BROKER:"))
+    {
         incoming.remove(0, 12);
         incoming.toCharArray(mqtt_broker_ip, sizeof(mqtt_broker_ip));
         Serial.print("MQTT Broker IP set to: ");
         Serial.println(mqtt_broker_ip);
         sendMQTTSettings();
-    } else if (incoming.startsWith("MQTT_PORT:")) {
+    }
+    else if (incoming.startsWith("MQTT_PORT:"))
+    {
         mqtt_port = incoming.substring(10).toInt();
         Serial.print("MQTT Broker Port set to: ");
         Serial.println(mqtt_port);
         sendMQTTSettings();
-    } else if (incoming.startsWith("NODEID:")) {
+    }
+    else if (incoming.startsWith("NODEID:"))
+    {
         incoming.remove(0, 7);
         incoming.toCharArray(nodeID, sizeof(nodeID));
         Serial.print("Node ID set to: ");
         Serial.println(nodeID);
         sendMQTTSettings();
-    } else if (incoming == "WATER_ON") {
+    }
+    else if (incoming == "WATER_ON")
+    {
         digitalWrite(RELAY_PIN, HIGH);
         digitalWrite(LED_PIN, HIGH);
         Serial.println("RELAY_PIN set to HIGH for manual watering");
-    } else if (incoming == "WATER_OFF") {
+    }
+    else if (incoming == "WATER_OFF")
+    {
         digitalWrite(RELAY_PIN, LOW);
         digitalWrite(LED_PIN, LOW);
         Serial.println("RELAY_PIN set to LOW for manual watering");
-    } else {
+    }
+    else
+    {
         Serial.println("Unknown command received");
     }
 }
 
-
 // 중간 값 필터 함수
-template<typename T>
-T getMedianValue(T* values, size_t size) {
+template <typename T>
+T getMedianValue(T *values, size_t size)
+{
     std::sort(values, values + size);
-    if (size % 2 == 0) {
+    if (size % 2 == 0)
+    {
         return (values[size / 2 - 1] + values[size / 2]) / 2;
-    } else {
+    }
+    else
+    {
         return values[size / 2];
     }
 }
 
 // 현재 세팅 출력
-void printCurrentSettings() {
+void printCurrentSettings()
+{
     Serial.println("Current Settings:");
     Serial.print("SSID: ");
     Serial.println(ssid);
