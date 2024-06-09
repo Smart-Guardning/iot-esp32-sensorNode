@@ -333,54 +333,65 @@ void callback(char* topic, byte* payload, unsigned int length) {
     Serial.print(": ");
     Serial.println(incoming);
 
-    if (incoming.startsWith("TARGET_MOISTURE")) {
+    if (incoming.startsWith("TARGET_MOISTURE:")) {
         targetMoisture = incoming.substring(15).toInt();
         Serial.print("New target moisture set to: ");
         Serial.println(targetMoisture);
         sendMQTTSettings();
-    } else if (incoming.startsWith("AUTO_WATER")) {
-        if (incoming.substring(10) == "ON") {
-            autoWatering = true;
-            Serial.println("Automatic watering enabled");
-        } else if (incoming.substring(10) == "OFF") {
-            autoWatering = false;
-            Serial.println("Automatic watering disabled");
-        }
+    } else if (incoming.startsWith("AUTO_WATER:")) {
+        autoWatering = (incoming.substring(11) == "ON");
+        Serial.print("Auto Watering set to: ");
+        Serial.println(autoWatering ? "ON" : "OFF");
         sendMQTTSettings();
-    } else if (incoming.startsWith("WATER_DURATION")) {
-        wateringDuration = incoming.substring(14).toInt();
-        Serial.print("New watering duration set to: ");
+    } else if (incoming.startsWith("WATER_DURATION:")) {
+        wateringDuration = incoming.substring(15).toInt();
+        Serial.print("Watering Duration set to: ");
         Serial.println(wateringDuration);
         sendMQTTSettings();
-    } else if (incoming.startsWith("MEASUREMENT_INTERVAL")) {
+    } else if (incoming.startsWith("MEASUREMENT_INTERVAL:")) {
         measurementInterval = incoming.substring(20).toInt();
-        Serial.print("New measurement interval set to: ");
+        Serial.print("Measurement Interval set to: ");
         Serial.println(measurementInterval);
         sendMQTTSettings();
-    } else if (incoming == "WATER_ON") {
-        watering = true;
-        wateringStartTime = millis();
-        digitalWrite(RELAY_PIN, HIGH);
-        digitalWrite(LED_PIN, HIGH); // 물펌프가 작동할 때 LED 켜기
-        Serial.println("RELAY_PIN set to HIGH");
-    } else if (incoming == "WATER_OFF") {
-        digitalWrite(RELAY_PIN, LOW);
-        digitalWrite(LED_PIN, LOW); // 물펌프가 작동하지 않을 때 LED 끄기
-        Serial.println("RELAY_PIN set to LOW");
-        watering = false;
     } else if (incoming.startsWith("SLEEP:")) {
-        if (incoming.substring(6) == "ON") {
-            isSleeping = true;
-            Serial.println("Sleep mode enabled");
-        } else if (incoming.substring(6) == "OFF") {
-            isSleeping = false;
-            Serial.println("Sleep mode disabled");
-        }
+        isSleeping = (incoming.substring(6) == "ON");
+        Serial.print("Sleep Mode set to: ");
+        Serial.println(isSleeping ? "ON" : "OFF");
+        sendMQTTSettings();
+    } else if (incoming.startsWith("SSID:")) {
+        incoming.remove(0, 5);
+        incoming.toCharArray(ssid, sizeof(ssid));
+        Serial.print("SSID set to: ");
+        Serial.println(ssid);
+        sendMQTTSettings();
+    } else if (incoming.startsWith("PASSWORD:")) {
+        incoming.remove(0, 9);
+        incoming.toCharArray(password, sizeof(password));
+        Serial.print("Password set to: ");
+        Serial.println(password);
+        sendMQTTSettings();
+    } else if (incoming.startsWith("MQTT_BROKER:")) {
+        incoming.remove(0, 12);
+        incoming.toCharArray(mqtt_broker_ip, sizeof(mqtt_broker_ip));
+        Serial.print("MQTT Broker IP set to: ");
+        Serial.println(mqtt_broker_ip);
+        sendMQTTSettings();
+    } else if (incoming.startsWith("MQTT_PORT:")) {
+        mqtt_port = incoming.substring(10).toInt();
+        Serial.print("MQTT Broker Port set to: ");
+        Serial.println(mqtt_port);
+        sendMQTTSettings();
+    } else if (incoming.startsWith("NODEID:")) {
+        incoming.remove(0, 7);
+        incoming.toCharArray(nodeID, sizeof(nodeID));
+        Serial.print("Node ID set to: ");
+        Serial.println(nodeID);
         sendMQTTSettings();
     } else {
         Serial.println("Unknown command received");
     }
 }
+
 
 // 중간 값 필터 함수
 template<typename T>
