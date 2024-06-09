@@ -63,6 +63,9 @@ function sendMQTTSettings() {
 mqttClient.on('connect', () => {
     console.log('Connected to MQTT broker');
 
+    // 초기에 설정값을 전송
+    sendMQTTSettings();
+
     // 주기적으로 센서 데이터 발행 (3초마다)
     setInterval(() => {
         if (!watering) { // 펌프가 작동 중이 아닐 때만 데이터 발행
@@ -79,9 +82,6 @@ mqttClient.on('connect', () => {
             });
         }
     }, 3000);
-
-    // 초기에 설정값을 전송
-    sendMQTTSettings();
 });
 
 mqttClient.on('error', (err) => {
