@@ -26,7 +26,7 @@ function generateSensorData() {
     // 릴레이 스위치 상태
     const waterpipe = watering ? 1 : 0; // 0-1 사이의 랜덤 값
     const errorCode = Math.floor(Math.random() * 2); // 0-1 사이의 랜덤 값
-
+    const bettery = 4.55; // 배터리 전압
     return {
         node_id: nodeID,
         soil_moisture: soilMoisture,
@@ -35,6 +35,7 @@ function generateSensorData() {
         humidity: humidity,
         waterpipe: waterpipe,
         error_code: errorCode,
+        bettery_level: bettery
     };
 }
 

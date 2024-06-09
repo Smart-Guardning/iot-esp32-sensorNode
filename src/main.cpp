@@ -21,6 +21,7 @@ char nodeID[50] = "smartSensor-01";
 #define DHT_PIN 21
 #define RELAY_PIN 26
 #define LED_PIN 5 // LED 핀 설정
+#define BATTERY_PIN 35 
 
 DHT dht(DHT_PIN, DHT22);
 
@@ -44,6 +45,7 @@ void processSerialInput();
 void goToSleep();
 template<typename T> T getMedianValue(T* values, size_t size);
 void sendMQTTSettings();
+float readBatteryLevel();
 
 void setup() {
     Serial.begin(115200);
@@ -51,6 +53,7 @@ void setup() {
     pinMode(WATER_LEVEL_PIN, INPUT);
     pinMode(RELAY_PIN, OUTPUT);
     pinMode(LED_PIN, OUTPUT); // LED 핀 설정
+    pinMode(BATTERY_PIN, INPUT);
     digitalWrite(RELAY_PIN, LOW);
     digitalWrite(LED_PIN, LOW); // 초기 상태에서 LED 끄기
 
@@ -142,6 +145,7 @@ void collectSensorData() {
     float humidity = getMedianValue(humidityValues, numReadings);
     int waterpipe = digitalRead(RELAY_PIN); // 릴레이 핀의 현재 상태 읽기
     int error_code = 0; // 0: 정상, 1: 오류 DHT11 센서 오류, 2: 오류 수위 센서 오류, 3: 오류 토양 습도 센서 오류
+    float batteryLevel = readBatteryLevel(); // 배터리 레벨 읽기
 
     String tempStr = isnan(temp) ? "null" : String(temp);
     String humidityStr = isnan(humidity) ? "null" : String(humidity);
@@ -173,6 +177,8 @@ void collectSensorData() {
     Serial.println(humidityStr);
     Serial.print("Waterpipe: ");
     Serial.println(waterpipe);
+    Serial.print("Battery Level: ");
+    Serial.println(batteryLevel);
     Serial.print("Error Code: ");
     Serial.println(error_code);
 
@@ -185,6 +191,7 @@ void collectSensorData() {
         payload += "\"temperature\": " + tempStr + ",";
         payload += "\"humidity\": " + humidityStr + ",";
         payload += "\"waterpipe\": " + String(waterpipe) + ",";
+        payload += "\"battery_level\": " + String(batteryLevel) + ",";
         payload += "\"error_code\": " + String(error_code);
         payload += "}";
 
@@ -211,6 +218,11 @@ void collectSensorData() {
             watering = false;
         }
     }
+}
+
+//배터리 레벨 읽기 함수
+float readBatteryLevel() {
+    return analogRead(BATTERY_PIN) / 4096.0 * 7.445;
 }
 
 // 시리얼 입력 처리 함수
