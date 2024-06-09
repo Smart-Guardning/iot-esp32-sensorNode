@@ -22,7 +22,7 @@ char nodeID[50] = "smartSensor-01";
 #define RELAY_PIN 26
 #define LED_PIN 5 // LED 핀 설정
 
-DHT dht(DHT_PIN, DHT11);
+DHT dht(DHT_PIN, DHT22);
 
 WiFiClient espClient;
 PubSubClient client(espClient);
