@@ -5,6 +5,7 @@
 #include <DHT.h>
 #include <esp_sleep.h>
 #include <algorithm>
+#include <Preferences.h>
 
 // WiFi 설정 (기본값, 시리얼 통신으로 설정 가능)
 char ssid[50] = "NEOS";
@@ -27,6 +28,9 @@ DHT dht(DHT_PIN, DHT22);
 
 WiFiClient espClient;
 PubSubClient client(espClient);
+
+// 설정값 저장을 위한 Preferences 객체 생성
+Preferences preferences;
 
 bool autoWatering = false;              // 자동 물주기 설정
 int targetMoisture = 2500;              // 기본 목표 습도
@@ -52,6 +56,8 @@ void sendMQTTSettings();
 float readBatteryLevel();
 void printCurrentSettings();
 void checkAutoWatering();
+void loadSettings();
+void saveSettings();
 
 void setup()
 {
@@ -63,7 +69,7 @@ void setup()
     pinMode(BATTERY_PIN, INPUT);
     digitalWrite(RELAY_PIN, LOW);
     digitalWrite(LED_PIN, LOW); // 초기 상태에서 LED 끄기
-
+    loadSettings();
     dht.begin();
     connectToWiFi();
     client.setCallback(callback);
@@ -271,6 +277,7 @@ void processSerialInput()
             Serial.print("SSID set to: ");
             Serial.println(ssid);
             sendMQTTSettings();
+            saveSettings();
         }
         else if (input.startsWith("PASSWORD:"))
         {
@@ -279,6 +286,7 @@ void processSerialInput()
             Serial.print("Password set to: ");
             Serial.println(password);
             sendMQTTSettings();
+            saveSettings();
         }
         else if (input.startsWith("MQTT_BROKER:"))
         {
@@ -287,6 +295,7 @@ void processSerialInput()
             Serial.print("MQTT Broker IP set to: ");
             Serial.println(mqtt_broker_ip);
             sendMQTTSettings();
+            saveSettings();
         }
         else if (input.startsWith("MQTT_PORT:"))
         {
@@ -295,6 +304,7 @@ void processSerialInput()
             Serial.print("MQTT Broker Port set to: ");
             Serial.println(mqtt_port);
             sendMQTTSettings();
+            saveSettings();
         }
         else if (input.startsWith("NODEID:"))
         {
@@ -303,6 +313,7 @@ void processSerialInput()
             Serial.print("Node ID set to: ");
             Serial.println(nodeID);
             sendMQTTSettings();
+            saveSettings();
         }
         else if (input.startsWith("AUTO_WATER:"))
         {
@@ -311,6 +322,7 @@ void processSerialInput()
             Serial.print("Auto Watering set to: ");
             Serial.println(autoWatering ? "ON" : "OFF");
             sendMQTTSettings();
+            saveSettings();
         }
         else if (input.startsWith("TARGET_MOISTURE:"))
         {
@@ -319,6 +331,7 @@ void processSerialInput()
             Serial.print("Target Moisture set to: ");
             Serial.println(targetMoisture);
             sendMQTTSettings();
+            saveSettings();
         }
         else if (input.startsWith("WATER_DURATION:"))
         {
@@ -327,6 +340,7 @@ void processSerialInput()
             Serial.print("Watering Duration set to: ");
             Serial.println(wateringDuration);
             sendMQTTSettings();
+            saveSettings();
         }
         else if (input.startsWith("MEASUREMENT_INTERVAL:"))
         {
@@ -335,6 +349,7 @@ void processSerialInput()
             Serial.print("Measurement Interval set to: ");
             Serial.println(measurementInterval);
             sendMQTTSettings();
+            saveSettings();
         }
         else if (input.startsWith("SLEEP:"))
         {
@@ -343,6 +358,7 @@ void processSerialInput()
             Serial.print("Sleep Mode set to: ");
             Serial.println(isSleeping ? "ON" : "OFF");
             sendMQTTSettings();
+            saveSettings();
         }
     }
 }
@@ -396,6 +412,7 @@ void callback(char *topic, byte *payload, unsigned int length)
         Serial.print("New target moisture set to: ");
         Serial.println(targetMoisture);
         sendMQTTSettings();
+        saveSettings();
     }
     else if (incoming.startsWith("AUTO_WATER:"))
     {
@@ -403,6 +420,7 @@ void callback(char *topic, byte *payload, unsigned int length)
         Serial.print("Auto Watering set to: ");
         Serial.println(autoWatering ? "ON" : "OFF");
         sendMQTTSettings();
+        saveSettings();
     }
     else if (incoming.startsWith("WATER_DURATION:"))
     {
@@ -411,6 +429,7 @@ void callback(char *topic, byte *payload, unsigned int length)
         Serial.print("Watering Duration set to: ");
         Serial.println(wateringDuration);
         sendMQTTSettings();
+        saveSettings();
     }
     else if (incoming.startsWith("MEASUREMENT_INTERVAL:"))
     {
@@ -419,6 +438,7 @@ void callback(char *topic, byte *payload, unsigned int length)
         Serial.print("Measurement Interval set to: ");
         Serial.println(measurementInterval);
         sendMQTTSettings();
+        saveSettings();
     }
     else if (incoming.startsWith("SLEEP:"))
     {
@@ -426,6 +446,7 @@ void callback(char *topic, byte *payload, unsigned int length)
         Serial.print("Sleep Mode set to: ");
         Serial.println(isSleeping ? "ON" : "OFF");
         sendMQTTSettings();
+        saveSettings();
     }
     else if (incoming.startsWith("SSID:"))
     {
@@ -434,6 +455,7 @@ void callback(char *topic, byte *payload, unsigned int length)
         Serial.print("SSID set to: ");
         Serial.println(ssid);
         sendMQTTSettings();
+        saveSettings();
     }
     else if (incoming.startsWith("PASSWORD:"))
     {
@@ -442,6 +464,7 @@ void callback(char *topic, byte *payload, unsigned int length)
         Serial.print("Password set to: ");
         Serial.println(password);
         sendMQTTSettings();
+        saveSettings();
     }
     else if (incoming.startsWith("MQTT_BROKER:"))
     {
@@ -450,6 +473,7 @@ void callback(char *topic, byte *payload, unsigned int length)
         Serial.print("MQTT Broker IP set to: ");
         Serial.println(mqtt_broker_ip);
         sendMQTTSettings();
+        saveSettings();
     }
     else if (incoming.startsWith("MQTT_PORT:"))
     {
@@ -457,6 +481,7 @@ void callback(char *topic, byte *payload, unsigned int length)
         Serial.print("MQTT Broker Port set to: ");
         Serial.println(mqtt_port);
         sendMQTTSettings();
+        saveSettings();
     }
     else if (incoming.startsWith("NODEID:"))
     {
@@ -465,6 +490,7 @@ void callback(char *topic, byte *payload, unsigned int length)
         Serial.print("Node ID set to: ");
         Serial.println(nodeID);
         sendMQTTSettings();
+        saveSettings();
     }
     else if (incoming == "WATER_ON")
     {
@@ -523,4 +549,50 @@ void printCurrentSettings()
     Serial.println(measurementInterval);
     Serial.print("Sleep Mode: ");
     Serial.println(isSleeping ? "ON" : "OFF");
+}
+
+// 설정값 저장 함수
+void saveSettings()
+{
+    preferences.begin("settings", false);
+    preferences.putString("ssid", ssid);
+    preferences.putString("password", password);
+    preferences.putString("mqtt_broker_ip", mqtt_broker_ip);
+    preferences.putInt("mqtt_port", mqtt_port);
+    preferences.putString("nodeID", nodeID);
+    preferences.putBool("autoWatering", autoWatering);
+    preferences.putInt("targetMoisture", targetMoisture);
+    preferences.putInt("wateringDuration", wateringDuration);
+    preferences.putInt("measurementInterval", measurementInterval);
+    preferences.putBool("isSleeping", isSleeping);
+    preferences.end();
+}
+
+// 설정값 불러오기 함수
+void loadSettings()
+{
+    preferences.begin("settings", true);
+    String stored_ssid = preferences.getString("ssid", ssid); // 두 번째 인자는 기본값
+    String stored_password = preferences.getString("password", password);
+    String stored_mqtt_broker_ip = preferences.getString("mqtt_broker_ip", mqtt_broker_ip);
+    int stored_mqtt_port = preferences.getInt("mqtt_port", mqtt_port);
+    String stored_nodeID = preferences.getString("nodeID", nodeID);
+    bool stored_autoWatering = preferences.getBool("autoWatering", autoWatering);
+    int stored_targetMoisture = preferences.getInt("targetMoisture", targetMoisture);
+    int stored_wateringDuration = preferences.getInt("wateringDuration", wateringDuration);
+    int stored_measurementInterval = preferences.getInt("measurementInterval", measurementInterval);
+    bool stored_isSleeping = preferences.getBool("isSleeping", isSleeping);
+    preferences.end();
+
+    // 불러온 값을 현재 변수에 저장
+    stored_ssid.toCharArray(ssid, sizeof(ssid));
+    stored_password.toCharArray(password, sizeof(password));
+    stored_mqtt_broker_ip.toCharArray(mqtt_broker_ip, sizeof(mqtt_broker_ip));
+    mqtt_port = stored_mqtt_port;
+    stored_nodeID.toCharArray(nodeID, sizeof(nodeID));
+    autoWatering = stored_autoWatering;
+    targetMoisture = stored_targetMoisture;
+    wateringDuration = stored_wateringDuration;
+    measurementInterval = stored_measurementInterval;
+    isSleeping = stored_isSleeping;
 }
